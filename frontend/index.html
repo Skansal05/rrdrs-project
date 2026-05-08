@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RRDRS — Rapid Response Disaster Relief System</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --surface: #12151c;
+      --surface2: #1a1f2b;
+      --border: #232a38;
+      --text: #dde3f0;
+      --muted: #5a6478;
+      --accent: #3b82f6;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #22c55e;
+      --info: #06b6d4;
+      --purple: #a78bfa;
+      --danger-bg: rgba(239,68,68,0.08);
+      --warning-bg: rgba(245,158,11,0.08);
+      --success-bg: rgba(34,197,94,0.08);
+      --info-bg: rgba(6,182,212,0.08);
+      --purple-bg: rgba(167,139,250,0.08);
+      --font: 'IBM Plex Sans', sans-serif;
+      --mono: 'IBM Plex Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+    /* SIDEBAR */
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 230px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+    .sidebar-logo { padding: 22px 18px 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo .logo-tag { font-size: 10px; font-family: var(--mono); color: var(--accent); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 5px; }
+    .sidebar-logo h1 { font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: 0.05em; }
+    .sidebar-logo p { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+    .sidebar-nav { padding: 14px 10px; flex: 1; overflow-y: auto; }
+    .nav-label { font-size: 9px; font-family: var(--mono); color: var(--muted); letter-spacing: 0.15em; padding: 0 8px; margin: 16px 0 6px; text-transform: uppercase; border-top: 1px solid var(--border); padding-top: 12px; }
+    .nav-label:first-child { border-top: none; padding-top: 0; margin-top: 4px; }
+    .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--muted); font-size: 12.5px; font-weight: 500; transition: all 0.15s; margin-bottom: 2px; border: none; background: transparent; width: 100%; text-align: left; font-family: var(--font); }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(59,130,246,0.12); color: var(--accent); border-left: 2px solid var(--accent); padding-left: 8px; }
+    .nav-item .icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; }
+    .nav-item.active .icon { opacity: 1; }
+    .nav-item .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--danger); margin-left: auto; flex-shrink: 0; animation: pulse 1.5s infinite; }
+    .sidebar-footer { padding: 14px 18px; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted); font-family: var(--mono); line-height: 1.8; }
+    .sidebar-footer span { color: var(--accent); }
+
+    /* MAIN */
+    .main { margin-left: 230px; flex: 1; }
+    .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+    .topbar-left h2 { font-size: 14px; font-weight: 600; font-family: var(--mono); letter-spacing: 0.05em; }
+    .topbar-left p { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .live-badge { display: flex; align-items: center; gap: 6px; font-size: 10px; font-family: var(--mono); color: var(--success); background: var(--success-bg); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(34,197,94,0.2); letter-spacing: 0.1em; }
+    .live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); animation: pulse 1.5s infinite; }
+    .schema-badge { font-size: 10px; font-family: var(--mono); color: var(--info); background: var(--info-bg); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(6,182,212,0.2); letter-spacing: 0.05em; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* PAGES */
+    .page { display: none; padding: 24px 28px; animation: fadeIn 0.2s ease; }
+    .page.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* STAT CARDS */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 12px; margin-bottom: 22px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; position: relative; overflow: hidden; }
+    .stat-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px; }
+    .stat-card.blue::after { background: linear-gradient(90deg, var(--accent), transparent); }
+    .stat-card.red::after { background: linear-gradient(90deg, var(--danger), transparent); }
+    .stat-card.yellow::after { background: linear-gradient(90deg, var(--warning), transparent); }
+    .stat-card.green::after { background: linear-gradient(90deg, var(--success), transparent); }
+    .stat-card.purple::after { background: linear-gradient(90deg, var(--purple), transparent); }
+    .stat-card.info::after { background: linear-gradient(90deg, var(--info), transparent); }
+    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; font-family: var(--mono); }
+    .stat-value { font-size: 30px; font-weight: 600; line-height: 1; font-family: var(--mono); }
+    .stat-value.red { color: var(--danger); } .stat-value.yellow { color: var(--warning); } .stat-value.green { color: var(--success); } .stat-value.blue { color: var(--accent); } .stat-value.purple { color: var(--purple); } .stat-value.info { color: var(--info); }
+    .stat-sub { font-size: 10px; color: var(--muted); margin-top: 5px; font-family: var(--mono); }
+
+    /* CARDS */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 18px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+    .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-family: var(--mono); }
+    .card-subtitle { font-size: 10px; color: var(--accent); font-family: var(--mono); background: rgba(59,130,246,0.08); padding: 2px 8px; border-radius: 3px; border: 1px solid rgba(59,130,246,0.2); }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th { text-align: left; padding: 8px 12px; color: var(--muted); font-size: 10px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 500; border-bottom: 1px solid var(--border); background: rgba(26,31,43,0.5); }
+    td { padding: 10px 12px; border-bottom: 1px solid rgba(35,42,56,0.6); color: var(--text); font-family: var(--mono); font-size: 12px; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    .fk-label { color: var(--info); font-size: 10px; }
+    .pk-label { color: var(--warning); font-size: 10px; }
+
+    /* BADGES */
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600; font-family: var(--mono); letter-spacing: 0.05em; }
+    .badge.red { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+    .badge.yellow { background: var(--warning-bg); color: var(--warning); border: 1px solid rgba(245,158,11,0.2); }
+    .badge.green { background: var(--success-bg); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+    .badge.blue { background: var(--info-bg); color: var(--info); border: 1px solid rgba(6,182,212,0.2); }
+    .badge.purple { background: var(--purple-bg); color: var(--purple); border: 1px solid rgba(167,139,250,0.2); }
+    .badge.accent { background: rgba(59,130,246,0.08); color: var(--accent); border: 1px solid rgba(59,130,246,0.2); }
+
+    /* ALERTS */
+    .alert { display: flex; align-items: flex-start; gap: 12px; padding: 11px 14px; border-radius: 6px; margin-bottom: 10px; font-size: 12.5px; line-height: 1.5; font-family: var(--font); }
+    .alert.critical { background: var(--danger-bg); border: 1px solid rgba(239,68,68,0.15); border-left: 3px solid var(--danger); }
+    .alert.warning { background: var(--warning-bg); border: 1px solid rgba(245,158,11,0.15); border-left: 3px solid var(--warning); }
+    .alert-icon { flex-shrink: 0; margin-top: 1px; font-size: 13px; }
+
+    /* FORMS */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 10px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; }
+    label .fk-hint { color: var(--info); font-size: 9px; margin-left: 4px; }
+    label .pk-hint { color: var(--warning); font-size: 9px; margin-left: 4px; }
+    input, select, textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 8px 12px; color: var(--text); font-family: var(--mono); font-size: 12px; outline: none; transition: border-color 0.15s; width: 100%; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+    select option { background: var(--surface2); }
+
+    /* BUTTONS */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 5px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-family: var(--mono); transition: all 0.15s; letter-spacing: 0.02em; }
+    .btn:hover { background: var(--border); }
+    .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn.primary:hover { background: #2563eb; }
+    .btn.success { background: var(--success-bg); color: var(--success); border-color: rgba(34,197,94,0.25); }
+    .btn.success:hover { background: rgba(34,197,94,0.15); }
+    .btn.danger { background: var(--danger-bg); color: var(--danger); border-color: rgba(239,68,68,0.25); }
+    .btn.sm { padding: 4px 10px; font-size: 10px; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* PROGRESS */
+    .progress { background: var(--surface2); border-radius: 2px; height: 4px; overflow: hidden; margin-top: 5px; }
+    .progress-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+
+    /* CODE BLOCK */
+    .code-block { background: #07090d; border: 1px solid var(--border); border-radius: 6px; padding: 16px 18px; font-family: var(--mono); font-size: 11.5px; color: #94a3b8; line-height: 2; overflow-x: auto; margin-top: 12px; position: relative; }
+    .code-block .cb-label { position: absolute; top: 8px; right: 12px; font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+    .code-block .kw { color: #c084fc; font-weight: 600; }
+    .code-block .fn { color: #34d399; }
+    .code-block .str { color: #fbbf24; }
+    .code-block .cm { color: #374151; font-style: italic; }
+    .code-block .num { color: #fb923c; }
+    .code-block .err { color: #ef4444; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 11px 16px; font-size: 12px; font-family: var(--mono); display: flex; align-items: center; gap: 10px; z-index: 999; transform: translateY(80px); opacity: 0; transition: all 0.25s ease; max-width: 360px; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
+    .toast.warning { border-left: 3px solid var(--warning); }
+
+    /* INVENTORY BARS */
+    .inv-row { margin-bottom: 16px; }
+    .inv-row-header { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; font-family: var(--mono); }
+
+    /* LAYOUTS */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+
+    /* MSG BOX */
+    .msg-box { padding: 9px 14px; border-radius: 5px; font-size: 11px; font-family: var(--mono); margin-top: 10px; display: none; line-height: 1.6; }
+    .msg-box.success { background: var(--success-bg); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+    .msg-box.error { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+
+    /* TIMELINE */
+    .timeline { position: relative; padding-left: 26px; }
+    .timeline::before { content: ''; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 1px; background: var(--border); }
+    .tl-item { position: relative; margin-bottom: 18px; }
+    .tl-item::before { content: ''; position: absolute; left: -21px; top: 4px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--border); background: var(--bg); }
+    .tl-item.done::before { background: var(--success); border-color: var(--success); }
+    .tl-item.active::before { background: var(--accent); border-color: var(--accent); animation: pulse 1.5s infinite; }
+    .tl-label { font-size: 12px; font-weight: 600; margin-bottom: 2px; font-family: var(--mono); }
+    .tl-sub { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+    /* FILTER */
+    .filter-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .filter-row select { width: auto; min-width: 130px; padding: 5px 10px; font-size: 11px; }
+
+    /* SCHEMA DIAGRAM */
+    .schema-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: var(--mono); font-size: 11px; line-height: 2; }
+    .schema-box .tname { color: var(--accent); font-weight: 600; font-size: 12px; }
+    .schema-box .col-pk { color: var(--warning); }
+    .schema-box .col-fk { color: var(--info); }
+    .schema-box .col-nn { color: var(--text); }
+    .schema-box .col-opt { color: var(--muted); }
+
+    /* DIVIDER */
+    .section-divider { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; margin: 22px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+    .info-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-family: var(--mono); color: var(--muted); background: var(--surface2); padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); }
+
+    @media (max-width: 900px) { .two-col, .three-col { grid-template-columns: 1fr; } .form-grid, .form-grid-3 { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .sidebar { display: none; } .main { margin-left: 0; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-tag">UCS310 · DBMS</div>
+      <h1>RRDRS</h1>
+      <p>Disaster Relief Command</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Dashboard</div>
+      <button class="nav-item active" onclick="showPage('overview', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Overview <span class="dot"></span>
+      </button>
+
+      <div class="nav-label">Core Tables</div>
+      <button class="nav-item" onclick="showPage('camps', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+        Relief_Camps
+      </button>
+      <button class="nav-item" onclick="showPage('catalog', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        Supply_Catalog
+      </button>
+      <button class="nav-item" onclick="showPage('inventory', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 7H4a1 1 0 00-1 1v11a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1z"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+        Camp_Inventory
+      </button>
+
+      <div class="nav-label">Operations</div>
+      <button class="nav-item" onclick="showPage('requests', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Relief_Requests
+      </button>
+      <button class="nav-item" onclick="showPage('warehouses', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        Warehouses
+      </button>
+      <button class="nav-item" onclick="showPage('shipments', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Shipments
+      </button>
+
+      <div class="nav-label">PL/SQL</div>
+      <button class="nav-item" onclick="showPage('triggers', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Triggers
+      </button>
+      <button class="nav-item" onclick="showPage('procedures', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Proc &amp; Functions
+      </button>
+      <button class="nav-item" onclick="showPage('report', this)">
+        <svg class="icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+        Critical Shortages
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <span>2C65</span> · Thapar Institute<br>
+      Samarth · Shourya · Pallav<br>
+      Oracle 21c · UCS310
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <h2 id="page-title">SYSTEM_OVERVIEW</h2>
+        <p id="page-sub">-- monitoring all active relief camps</p>
+      </div>
+      <div class="topbar-right">
+        <div class="schema-badge">Oracle 19c · 7 Tables · 5 Triggers</div>
+        <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+      </div>
+    </div>
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="page active" id="p-overview">
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-label">Active Camps</div><div class="stat-value blue" id="s-camps">4</div><div class="stat-sub">RELIEF_CAMPS rows</div></div>
+        <div class="stat-card green"><div class="stat-label">Total Population</div><div class="stat-value green" id="s-pop">12,450</div><div class="stat-sub">SUM(current_population)</div></div>
+        <div class="stat-card yellow"><div class="stat-label">Pending Requests</div><div class="stat-value yellow" id="s-pending">3</div><div class="stat-sub">status = 'Pending'</div></div>
+        <div class="stat-card red"><div class="stat-label">Critical Alerts</div><div class="stat-value red" id="s-alerts">2</div><div class="stat-sub">trg_low_stock_alert fired</div></div>
+        <div class="stat-card purple"><div class="stat-label">In-Transit Ships</div><div class="stat-value purple" id="s-shipments">2</div><div class="stat-sub">status = 'In Transit'</div></div>
+        <div class="stat-card info"><div class="stat-label">Warehouses</div><div class="stat-value info">3</div><div class="stat-sub">WAREHOUSES rows</div></div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">🚨 Live Alerts — trg_low_stock_alert</div></div>
+            <div class="alert critical"><div class="alert-icon">⚠</div><div><strong>Camp Roorkee B</strong> (camp_id=1) — Water: <strong>0.4 days remaining</strong>. trg_low_stock_alert fired → auto-inserted Critical request.</div></div>
+            <div class="alert critical"><div class="alert-icon">⚠</div><div><strong>Camp Haridwar A</strong> (camp_id=2) — Insulin: 8 units &lt; threshold 10. trigger fired → Critical request auto-created via seq_request.</div></div>
+            <div class="alert warning"><div class="alert-icon">!</div><div><strong>Camp Dehradun C</strong> (camp_id=3) — Rice: 2.8 days left. get_days_left() returned value &lt; 3.</div></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">📦 Recent Shipments</div><span class="card-subtitle">SHIPMENTS table</span></div>
+            <table>
+              <thead><tr><th>shipment_id <span class="pk-label">PK</span></th><th>request_id <span class="fk-label">FK</span></th><th>Item</th><th>status</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>1</td><td>Water 50,000L</td><td><span class="badge blue">In Transit</span></td></tr>
+                <tr><td>2</td><td>2</td><td>Insulin 200u</td><td><span class="badge blue">In Transit</span></td></tr>
+                <tr><td>3</td><td>4</td><td>Blankets 500</td><td><span class="badge green">Delivered</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Camp Status Summary</div><span class="card-subtitle">RELIEF_CAMPS JOIN CAMP_INVENTORY</span></div>
+            <table>
+              <thead><tr><th>camp_id</th><th>camp_name</th><th>district</th><th>population</th><th>status</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Camp Roorkee B</td><td>Roorkee</td><td>3,200</td><td><span class="badge red">Critical</span></td></tr>
+                <tr><td>2</td><td>Camp Haridwar A</td><td>Haridwar</td><td>4,100</td><td><span class="badge red">Critical</span></td></tr>
+                <tr><td>3</td><td>Camp Dehradun C</td><td>Dehradun</td><td>2,950</td><td><span class="badge yellow">Low Stock</span></td></tr>
+                <tr><td>4</td><td>Camp Rishikesh D</td><td>Rishikesh</td><td>2,200</td><td><span class="badge green">Stable</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">Quick Actions</div></div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <button class="btn primary" onclick="showPage('requests',null)">+ INSERT INTO Relief_Requests</button>
+              <button class="btn" onclick="showPage('inventory',null)">UPDATE Camp_Inventory SET qty...</button>
+              <button class="btn" onclick="showPage('shipments',null)">🚚 INSERT INTO Shipments</button>
+              <button class="btn" onclick="showPage('camps',null)">🏕️ INSERT INTO Relief_Camps</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schema overview -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Relational Schema — 3NF Normalized</div><span class="card-subtitle">7 tables · FK chains</span></div>
+        <div class="two-col">
+          <div>
+            <div class="schema-box">
+              <div class="tname">RELIEF_CAMPS</div>
+              <div><span class="col-pk">camp_id NUMBER PK</span></div>
+              <div><span class="col-nn">camp_name VARCHAR2(100) NOT NULL</span></div>
+              <div><span class="col-nn">district VARCHAR2(50)</span></div>
+              <div><span class="col-opt">latitude NUMBER(9,6)</span></div>
+              <div><span class="col-opt">longitude NUMBER(9,6)</span></div>
+              <div><span class="col-nn">current_population NUMBER ≥ 0</span></div>
+              <div><span class="col-opt">contact_person, contact_number</span></div>
+            </div>
+            <div class="schema-box" style="margin-top:10px">
+              <div class="tname">SUPPLY_CATALOG</div>
+              <div><span class="col-pk">item_id NUMBER PK</span></div>
+              <div><span class="col-nn">item_name VARCHAR2(100) NOT NULL</span></div>
+              <div><span class="col-opt">category VARCHAR2(50)</span></div>
+              <div><span class="col-nn">per_person_daily_need NUMBER ≥ 0</span></div>
+            </div>
+            <div class="schema-box" style="margin-top:10px">
+              <div class="tname">CAMP_INVENTORY</div>
+              <div><span class="col-pk">PK (camp_id, item_id) — COMPOSITE</span></div>
+              <div><span class="col-fk">camp_id FK → RELIEF_CAMPS ON DELETE CASCADE</span></div>
+              <div><span class="col-fk">item_id FK → SUPPLY_CATALOG ON DELETE CASCADE</span></div>
+              <div><span class="col-nn">quantity_on_hand NUMBER ≥ 0 NOT NULL</span></div>
+              <div><span class="col-opt">last_updated DATE (auto via trigger)</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="schema-box">
+              <div class="tname">RELIEF_REQUESTS</div>
+              <div><span class="col-pk">request_id NUMBER PK (seq_request)</span></div>
+              <div><span class="col-fk">camp_id FK → RELIEF_CAMPS CASCADE</span></div>
+              <div><span class="col-fk">item_id FK → SUPPLY_CATALOG CASCADE</span></div>
+              <div><span class="col-nn">quantity_requested NUMBER &gt; 0</span></div>
+              <div><span class="col-opt">request_date DATE</span></div>
+              <div><span class="col-nn">status CHECK ('Pending','Fulfilled','Rejected')</span></div>
+              <div><span class="col-nn">priority_level CHECK ('Low','Medium','High','Critical')</span></div>
+            </div>
+            <div class="schema-box" style="margin-top:10px">
+              <div class="tname">WAREHOUSES</div>
+              <div><span class="col-pk">warehouse_id NUMBER PK</span></div>
+              <div><span class="col-nn">location VARCHAR2(100)</span></div>
+              <div><span class="col-opt">capacity NUMBER ≥ 0</span></div>
+              <div><span class="col-opt">contact_info VARCHAR2(100)</span></div>
+            </div>
+            <div class="schema-box" style="margin-top:10px">
+              <div class="tname">SHIPMENTS</div>
+              <div><span class="col-pk">shipment_id NUMBER PK (seq_shipment)</span></div>
+              <div><span class="col-fk">request_id FK → RELIEF_REQUESTS CASCADE</span></div>
+              <div><span class="col-fk">warehouse_id FK → WAREHOUSES CASCADE</span></div>
+              <div><span class="col-opt">dispatch_date, delivery_date DATE</span></div>
+              <div><span class="col-nn">shipped_quantity NUMBER &gt; 0</span></div>
+              <div><span class="col-nn">status CHECK ('In Transit','Delivered','Delayed')</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RELIEF_CAMPS ===== -->
+    <div class="page" id="p-camps">
+      <div class="card">
+        <div class="card-header"><div class="card-title">INSERT INTO Relief_Camps</div><span class="card-subtitle">PK: camp_id (manual)</span></div>
+        <div class="form-grid">
+          <div class="form-group"><label>camp_name <span class="pk-hint">NOT NULL</span></label><input type="text" id="f-cname" placeholder="e.g. Camp Roorkee B"></div>
+          <div class="form-group"><label>district</label><input type="text" id="f-district" placeholder="e.g. Haridwar"></div>
+          <div class="form-group"><label>current_population <span class="pk-hint">NOT NULL · CHECK ≥ 0</span></label><input type="number" id="f-pop" placeholder="0" min="0"></div>
+          <div class="form-group"><label>contact_person</label><input type="text" id="f-contact" placeholder="Full name"></div>
+          <div class="form-group"><label>contact_number</label><input type="text" id="f-phone" placeholder="+91 XXXXX XXXXX"></div>
+          <div class="form-group"><label>latitude NUMBER(9,6)</label><input type="text" id="f-lat" placeholder="29.8543"></div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn primary" onclick="addCamp()">+ INSERT Camp</button>
+          <button class="btn" onclick="clearCampForm()">Clear</button>
+        </div>
+        <div class="msg-box" id="camp-msg"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">RELIEF_CAMPS Table</div>
+          <span class="info-pill" id="camp-count-label">4 rows</span>
+        </div>
+        <div class="table-wrap">
+          <table id="camp-table">
+            <thead><tr>
+              <th>camp_id <span class="pk-label">PK</span></th>
+              <th>camp_name</th><th>district</th>
+              <th>current_population <span class="fk-label">CHECK≥0</span></th>
+              <th>contact_person</th><th>contact_number</th>
+              <th>lat</th><th>Action</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Camp Roorkee B</td><td>Roorkee</td><td>3,200</td><td>Ravi Sharma</td><td>+91 98100 00001</td><td>29.8543</td><td><button class="btn sm danger" onclick="deleteRow(this,'camp')">DELETE</button></td></tr>
+              <tr><td>2</td><td>Camp Haridwar A</td><td>Haridwar</td><td>4,100</td><td>Priya Singh</td><td>+91 98100 00002</td><td>29.9457</td><td><button class="btn sm danger" onclick="deleteRow(this,'camp')">DELETE</button></td></tr>
+              <tr><td>3</td><td>Camp Dehradun C</td><td>Dehradun</td><td>2,950</td><td>Anil Mehta</td><td>+91 98100 00003</td><td>30.3165</td><td><button class="btn sm danger" onclick="deleteRow(this,'camp')">DELETE</button></td></tr>
+              <tr><td>4</td><td>Camp Rishikesh D</td><td>Rishikesh</td><td>2,200</td><td>Sunita Rawat</td><td>+91 98100 00004</td><td>30.0869</td><td><button class="btn sm danger" onclick="deleteRow(this,'camp')">DELETE</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:var(--mono)">ON DELETE CASCADE → Camp_Inventory rows auto-removed · Relief_Requests rows auto-removed</div>
+      </div>
+    </div>
+
+    <!-- ===== SUPPLY_CATALOG ===== -->
+    <div class="page" id="p-catalog">
+      <div class="card">
+        <div class="card-header"><div class="card-title">SUPPLY_CATALOG Table</div><span class="card-subtitle">Master item list · item_id PK</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>item_id <span class="pk-label">PK</span></th>
+              <th>item_name</th><th>category</th>
+              <th>per_person_daily_need <span class="fk-label">CHECK≥0</span></th>
+              <th>Used in days_left calc</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>101</td><td>Water</td><td>Essential</td><td>3 L/person/day</td><td><span class="badge green">qty / (pop × 3)</span></td></tr>
+              <tr><td>102</td><td>Rice</td><td>Food</td><td>0.5 kg/person/day</td><td><span class="badge green">qty / (pop × 0.5)</span></td></tr>
+              <tr><td>103</td><td>Medicine</td><td>Medical</td><td>0.1 strips/person/day</td><td><span class="badge green">qty / (pop × 0.1)</span></td></tr>
+              <tr><td>104</td><td>Insulin</td><td>Medical</td><td>0.01 units/person/day</td><td><span class="badge green">qty / (pop × 0.01)</span></td></tr>
+              <tr><td>105</td><td>Blankets</td><td>Shelter</td><td>0.003 /person/day</td><td><span class="badge accent">one-time</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block" style="margin-top:16px">
+          <span class="cb-label">AGGREGATION QUERY</span>
+          <span class="cm">-- Total demand per item (from synopsis Section 11)</span><br>
+          <span class="kw">SELECT</span> item_id, <span class="fn">SUM</span>(quantity_requested) <span class="kw">AS</span> total_demand<br>
+          <span class="kw">FROM</span> Relief_Requests<br>
+          <span class="kw">GROUP BY</span> item_id<br>
+          <span class="kw">ORDER BY</span> total_demand <span class="kw">DESC</span>;
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Days-of-Supply Formula</div><span class="card-subtitle">get_days_left() function</span></div>
+        <div style="font-size:13px;color:var(--text);font-family:var(--mono);background:var(--surface2);padding:16px;border-radius:6px;border:1px solid var(--border);line-height:2.2;">
+          <span style="color:var(--warning)">days_left</span> = <span style="color:var(--info)">quantity_on_hand</span> ÷ (<span style="color:var(--success)">current_population</span> × <span style="color:var(--purple)">per_person_daily_need</span>)<br>
+          <span style="color:var(--muted);font-size:11px;">— e.g. Water at Roorkee B: 1,280 ÷ (3,200 × 3) = <span style="color:var(--danger)">0.13 days</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CAMP_INVENTORY ===== -->
+    <div class="page" id="p-inventory">
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">UPDATE Camp_Inventory</div><span class="card-subtitle">Composite PK (camp_id, item_id)</span></div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>camp_id <span class="fk-hint">FK → RELIEF_CAMPS</span></label>
+              <select id="inv-camp">
+                <option value="1">1 — Camp Roorkee B</option>
+                <option value="2">2 — Camp Haridwar A</option>
+                <option value="3">3 — Camp Dehradun C</option>
+                <option value="4">4 — Camp Rishikesh D</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>item_id <span class="fk-hint">FK → SUPPLY_CATALOG</span></label>
+              <select id="inv-item">
+                <option value="101">101 — Water (L)</option>
+                <option value="102">102 — Rice (kg)</option>
+                <option value="103">103 — Medicine (strips)</option>
+                <option value="104">104 — Insulin (units)</option>
+                <option value="105">105 — Blankets</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>quantity_on_hand <span class="pk-hint">NOT NULL · CHECK ≥ 0</span></label>
+              <input type="number" id="inv-qty" placeholder="e.g. 5000" min="0">
+            </div>
+            <div style="font-size:10px;color:var(--muted);font-family:var(--mono);background:var(--surface2);padding:10px 12px;border-radius:5px;border:1px solid var(--border);margin-bottom:12px;">
+              ⚡ trg_update_timestamp fires → last_updated := SYSDATE<br>
+              ⚡ trg_no_negative_stock validates quantity ≥ 0<br>
+              ⚡ If qty &lt; 10 → trg_low_stock_alert inserts Critical request
+            </div>
+            <button class="btn primary" onclick="updateInventory()">Execute UPDATE</button>
+            <div class="msg-box" id="inv-msg"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Supply Levels — get_days_left()</div></div>
+            <div id="inv-bars"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">CAMP_INVENTORY Table</div>
+          <span class="card-subtitle">PK = (camp_id, item_id) composite</span>
+        </div>
+        <div class="table-wrap">
+          <table id="inv-table">
+            <thead><tr>
+              <th>camp_id <span class="pk-label">PK+FK</span></th>
+              <th>item_id <span class="pk-label">PK+FK</span></th>
+              <th>quantity_on_hand</th>
+              <th>days_left*</th>
+              <th>last_updated <span class="fk-label">auto-trigger</span></th>
+              <th>Status</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>1</td><td>101 (Water)</td><td>1,280 L</td><td><span class="badge red">0.13</span></td><td>2025-06-01</td><td><span class="badge red">Critical</span></td></tr>
+              <tr><td>2</td><td>104 (Insulin)</td><td>8 units</td><td><span class="badge red">&lt;1</span></td><td>2025-06-01</td><td><span class="badge red">Critical</span></td></tr>
+              <tr><td>3</td><td>102 (Rice)</td><td>4,200 kg</td><td><span class="badge yellow">2.8</span></td><td>2025-06-01</td><td><span class="badge yellow">Low</span></td></tr>
+              <tr><td>4</td><td>101 (Water)</td><td>22,000 L</td><td><span class="badge green">10</span></td><td>2025-06-01</td><td><span class="badge green">Stable</span></td></tr>
+              <tr><td>4</td><td>102 (Rice)</td><td>8,800 kg</td><td><span class="badge green">8</span></td><td>2025-06-01</td><td><span class="badge green">Stable</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:10px;font-family:var(--mono)">
+          * days_left = get_days_left(camp_id, item_id) — calls function from PL/SQL module<br>
+          * No inventory_id column — PK is composite (camp_id, item_id) as per actual schema
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RELIEF_REQUESTS ===== -->
+    <div class="page" id="p-requests">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">INSERT INTO Relief_Requests</div>
+          <span class="card-subtitle">PK: seq_request.NEXTVAL · trg_set_priority fires on INSERT</span>
+        </div>
+        <div style="font-size:10px;color:var(--warning);font-family:var(--mono);background:rgba(245,158,11,0.06);padding:9px 12px;border-radius:5px;border:1px solid rgba(245,158,11,0.15);margin-bottom:14px;">
+          ⚡ trg_set_priority auto-sets priority_level based on quantity_requested:<br>
+          &gt;100 → Critical · &gt;50 → High · &gt;20 → Medium · else → Low
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>camp_id <span class="fk-hint">FK → RELIEF_CAMPS</span></label>
+            <select id="req-camp">
+              <option value="1">1 — Camp Roorkee B</option>
+              <option value="2">2 — Camp Haridwar A</option>
+              <option value="3">3 — Camp Dehradun C</option>
+              <option value="4">4 — Camp Rishikesh D</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>item_id <span class="fk-hint">FK → SUPPLY_CATALOG</span></label>
+            <select id="req-item">
+              <option value="101">101 — Water (L)</option>
+              <option value="102">102 — Rice (kg)</option>
+              <option value="103">103 — Medicine</option>
+              <option value="104">104 — Insulin</option>
+              <option value="105">105 — Blankets</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>quantity_requested <span class="pk-hint">CHECK &gt; 0</span></label>
+            <input type="number" id="req-qty" placeholder="e.g. 150" min="1">
+          </div>
+          <div class="form-group">
+            <label>priority_level <span class="fk-label">(overridden by trg_set_priority)</span></label>
+            <select id="req-priority">
+              <option value="Critical">Critical</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn primary" onclick="addRequest()">Execute INSERT</button>
+          <button class="btn" onclick="clearReqForm()">Clear</button>
+        </div>
+        <div class="msg-box" id="req-msg"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">RELIEF_REQUESTS Table — Admin View</div>
+          <div class="filter-row">
+            <select id="req-filter-status" onchange="filterRequests()">
+              <option value="">All status</option>
+              <option value="Pending">Pending</option>
+              <option value="Fulfilled">Fulfilled</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            <select id="req-filter-priority" onchange="filterRequests()">
+              <option value="">All priority</option>
+              <option value="Critical">Critical</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="req-table">
+            <thead><tr>
+              <th>request_id <span class="pk-label">PK</span></th>
+              <th>camp_id <span class="fk-label">FK</span></th>
+              <th>item_id <span class="fk-label">FK</span></th>
+              <th>quantity_requested</th>
+              <th>request_date</th>
+              <th>priority_level</th>
+              <th>status <span class="fk-label">CHECK</span></th>
+              <th>Action</th>
+            </tr></thead>
+            <tbody>
+              <tr data-status="Pending" data-priority="Critical">
+                <td>1</td><td>1</td><td>101</td><td>50,000</td><td>2025-06-01</td>
+                <td><span class="badge red">Critical</span></td>
+                <td><span class="badge red">Pending</span></td>
+                <td><button class="btn sm" onclick="fulfillReq(this)">Mark Fulfilled</button></td>
+              </tr>
+              <tr data-status="Pending" data-priority="Critical">
+                <td>2</td><td>2</td><td>104</td><td>200</td><td>2025-06-01</td>
+                <td><span class="badge red">Critical</span></td>
+                <td><span class="badge red">Pending</span></td>
+                <td><button class="btn sm" onclick="fulfillReq(this)">Mark Fulfilled</button></td>
+              </tr>
+              <tr data-status="Pending" data-priority="High">
+                <td>3</td><td>3</td><td>102</td><td>10,000</td><td>2025-05-31</td>
+                <td><span class="badge yellow">High</span></td>
+                <td><span class="badge yellow">Pending</span></td>
+                <td><button class="btn sm" onclick="fulfillReq(this)">Mark Fulfilled</button></td>
+              </tr>
+              <tr data-status="Fulfilled" data-priority="Low">
+                <td>4</td><td>4</td><td>105</td><td>500</td><td>2025-05-30</td>
+                <td><span class="badge accent">Low</span></td>
+                <td><span class="badge green">Fulfilled</span></td>
+                <td><button class="btn sm" disabled>Done</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block" style="margin-top:14px">
+          <span class="cb-label">JOIN QUERY</span>
+          <span class="cm">-- Full view: join 3 tables (from synopsis Section 11)</span><br>
+          <span class="kw">SELECT</span> rc.camp_name, sc.item_name,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;rr.quantity_requested, rr.priority_level, rr.status<br>
+          <span class="kw">FROM</span> Relief_Requests rr<br>
+          <span class="kw">JOIN</span> Relief_Camps rc <span class="kw">ON</span> rr.camp_id = rc.camp_id<br>
+          <span class="kw">JOIN</span> Supply_Catalog sc <span class="kw">ON</span> rr.item_id = sc.item_id<br>
+          <span class="kw">ORDER BY</span> rr.priority_level <span class="kw">DESC</span>;
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== WAREHOUSES ===== -->
+    <div class="page" id="p-warehouses">
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">WAREHOUSES Table</div><span class="card-subtitle">warehouse_id PK</span></div>
+            <table>
+              <thead><tr>
+                <th>warehouse_id <span class="pk-label">PK</span></th>
+                <th>location</th><th>capacity</th><th>contact_info</th><th>Avail%</th>
+              </tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Dehradun Central</td><td>200,000</td><td>9876543201</td><td><span class="badge green">68%</span></td></tr>
+                <tr><td>2</td><td>Haridwar Depot</td><td>150,000</td><td>9876543202</td><td><span class="badge yellow">31%</span></td></tr>
+                <tr><td>3</td><td>Roorkee Hub</td><td>100,000</td><td>9876543203</td><td><span class="badge red">12%</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">WAREHOUSE_INVENTORY Table</div><span class="card-subtitle">Composite PK (warehouse_id, item_id)</span></div>
+            <table>
+              <thead><tr>
+                <th>warehouse_id <span class="pk-label">PK+FK</span></th>
+                <th>item_id <span class="pk-label">PK+FK</span></th>
+                <th>quantity_available <span class="fk-label">CHECK≥0</span></th>
+              </tr></thead>
+              <tbody>
+                <tr><td>1</td><td>101 (Water)</td><td>80,000 L</td></tr>
+                <tr><td>1</td><td>102 (Rice)</td><td>40,000 kg</td></tr>
+                <tr><td>2</td><td>104 (Insulin)</td><td>1,200 units</td></tr>
+                <tr><td>3</td><td>101 (Water)</td><td>12,000 L</td></tr>
+                <tr><td>3</td><td>105 (Blankets)</td><td>800</td></tr>
+              </tbody>
+            </table>
+            <div style="font-size:10px;color:var(--muted);margin-top:10px;font-family:var(--mono)">ON DELETE CASCADE from WAREHOUSES · ON DELETE CASCADE from SUPPLY_CATALOG</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Warehouse schema</div></div>
+        <div class="code-block">
+          <span class="cb-label">DDL</span>
+          <span class="kw">CREATE TABLE</span> Warehouse_Inventory (<br>
+          &nbsp;&nbsp;warehouse_id <span class="fn">NUMBER</span>,<br>
+          &nbsp;&nbsp;item_id <span class="fn">NUMBER</span>,<br>
+          &nbsp;&nbsp;quantity_available <span class="fn">NUMBER</span> <span class="kw">NOT NULL</span> <span class="kw">CHECK</span> (quantity_available &gt;= <span class="num">0</span>),<br><br>
+          &nbsp;&nbsp;<span class="kw">CONSTRAINT</span> pk_wh_inventory <span class="kw">PRIMARY KEY</span> (warehouse_id, item_id),<br>
+          &nbsp;&nbsp;<span class="kw">CONSTRAINT</span> fk_whi_warehouse <span class="kw">FOREIGN KEY</span> (warehouse_id)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">REFERENCES</span> Warehouses(warehouse_id) <span class="kw">ON DELETE CASCADE</span>,<br>
+          &nbsp;&nbsp;<span class="kw">CONSTRAINT</span> fk_whi_item <span class="kw">FOREIGN KEY</span> (item_id)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">REFERENCES</span> Supply_Catalog(item_id) <span class="kw">ON DELETE CASCADE</span><br>
+          );
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SHIPMENTS ===== -->
+    <div class="page" id="p-shipments">
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">INSERT INTO Shipments</div>
+              <span class="card-subtitle">PK: seq_shipment.NEXTVAL</span>
+            </div>
+            <div style="font-size:10px;color:var(--info);font-family:var(--mono);background:var(--info-bg);padding:9px 12px;border-radius:5px;border:1px solid rgba(6,182,212,0.15);margin-bottom:14px;">
+              ⚡ On status = 'Delivered': trg_update_inventory_on_delivery auto-updates Camp_Inventory
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>request_id <span class="fk-hint">FK → RELIEF_REQUESTS CASCADE</span></label>
+              <select id="sh-req">
+                <option value="1">1 — camp 1 / Water 50,000L [Critical]</option>
+                <option value="2">2 — camp 2 / Insulin 200u [Critical]</option>
+                <option value="3">3 — camp 3 / Rice 10,000kg [High]</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>warehouse_id <span class="fk-hint">FK → WAREHOUSES CASCADE</span></label>
+              <select id="sh-warehouse">
+                <option value="1">1 — Dehradun Central</option>
+                <option value="2">2 — Haridwar Depot</option>
+                <option value="3">3 — Roorkee Hub</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>shipped_quantity <span class="pk-hint">CHECK &gt; 0</span></label>
+              <input type="number" id="sh-qty" placeholder="e.g. 50000" min="1">
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>status CHECK('In Transit','Delivered','Delayed')</label>
+              <select id="sh-status"><option>In Transit</option><option>Delayed</option></select>
+            </div>
+            <div class="form-group" style="margin-bottom:16px">
+              <label>dispatch_date</label>
+              <input type="date" id="sh-eta">
+            </div>
+            <div style="display:flex;gap:10px">
+              <button class="btn primary" onclick="dispatchShipment()">🚚 Execute INSERT</button>
+              <button class="btn" onclick="clearShipmentForm()">Clear</button>
+            </div>
+            <div class="msg-box" id="sh-msg"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">process_shipment() Procedure</div></div>
+            <div class="code-block">
+              <span class="cb-label">PROCEDURE</span>
+              <span class="kw">CREATE OR REPLACE PROCEDURE</span> process_shipment (<br>
+              &nbsp;&nbsp;p_request_id <span class="fn">NUMBER</span>,<br>
+              &nbsp;&nbsp;p_warehouse_id <span class="fn">NUMBER</span>,<br>
+              &nbsp;&nbsp;p_quantity <span class="fn">NUMBER</span><br>
+              ) <span class="kw">IS</span><br>
+              <span class="kw">BEGIN</span><br>
+              &nbsp;&nbsp;<span class="kw">INSERT INTO</span> Shipments<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;(shipment_id, request_id, warehouse_id,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp; dispatch_date, shipped_quantity, status)<br>
+              &nbsp;&nbsp;<span class="kw">VALUES</span> (seq_shipment.<span class="fn">NEXTVAL</span>,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;p_request_id, p_warehouse_id,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">SYSDATE</span>, p_quantity, <span class="str">'In Transit'</span>);<br><br>
+              &nbsp;&nbsp;<span class="kw">UPDATE</span> Relief_Requests<br>
+              &nbsp;&nbsp;<span class="kw">SET</span> status = <span class="str">'Fulfilled'</span><br>
+              &nbsp;&nbsp;<span class="kw">WHERE</span> request_id = p_request_id;<br><br>
+              &nbsp;&nbsp;<span class="kw">COMMIT</span>;<br>
+              <span class="kw">END</span>;
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">SHIPMENTS Table</div>
+          <span class="info-pill" id="sh-count-label">3 rows</span>
+        </div>
+        <div class="table-wrap">
+          <table id="sh-table">
+            <thead><tr>
+              <th>shipment_id <span class="pk-label">PK</span></th>
+              <th>request_id <span class="fk-label">FK</span></th>
+              <th>warehouse_id <span class="fk-label">FK</span></th>
+              <th>dispatch_date</th>
+              <th>delivery_date</th>
+              <th>shipped_quantity</th>
+              <th>status <span class="fk-label">CHECK</span></th>
+              <th>Action</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td>1</td><td>1</td><td>3</td><td>2025-06-01</td><td>—</td><td>50,000</td>
+                <td><span class="badge blue">In Transit</span></td>
+                <td><button class="btn sm success" onclick="deliverShipment(this)">Mark Delivered</button></td>
+              </tr>
+              <tr>
+                <td>2</td><td>2</td><td>1</td><td>2025-06-01</td><td>—</td><td>200</td>
+                <td><span class="badge blue">In Transit</span></td>
+                <td><button class="btn sm success" onclick="deliverShipment(this)">Mark Delivered</button></td>
+              </tr>
+              <tr>
+                <td>3</td><td>4</td><td>2</td><td>2025-05-30</td><td>2025-05-31</td><td>500</td>
+                <td><span class="badge green">Delivered</span></td>
+                <td><button class="btn sm" disabled>Done</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TRIGGERS PAGE ===== -->
+    <div class="page" id="p-triggers">
+      <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+        <div class="stat-card purple"><div class="stat-label">Triggers</div><div class="stat-value purple">5</div><div class="stat-sub">Oracle PL/SQL</div></div>
+        <div class="stat-card red"><div class="stat-label">BEFORE triggers</div><div class="stat-value red">2</div><div class="stat-sub">Validate on write</div></div>
+        <div class="stat-card blue"><div class="stat-label">AFTER triggers</div><div class="stat-value blue">3</div><div class="stat-sub">Post-write logic</div></div>
+        <div class="stat-card yellow"><div class="stat-label">Sequences</div><div class="stat-value yellow">2</div><div class="stat-sub">seq_request/shipment</div></div>
+        <div class="stat-card green"><div class="stat-label">SYSDATE calls</div><div class="stat-value green">3</div><div class="stat-sub">Auto-timestamps</div></div>
+      </div>
+
+      <!-- Trigger 1 -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">① trg_no_negative_stock</div>
+          <span class="badge red">BEFORE INSERT OR UPDATE</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);font-family:var(--font);margin-bottom:12px;">Validates that quantity_on_hand is never set below 0. Uses RAISE_APPLICATION_ERROR to reject the DML with ORA-20001.</div>
+        <div class="code-block">
+          <span class="cb-label">TRIGGER 1 / 5</span>
+          <span class="kw">CREATE OR REPLACE TRIGGER</span> trg_no_negative_stock<br>
+          <span class="kw">BEFORE</span> <span class="fn">INSERT OR UPDATE</span> <span class="kw">ON</span> Camp_Inventory<br>
+          <span class="kw">FOR EACH ROW</span><br>
+          <span class="kw">BEGIN</span><br>
+          &nbsp;&nbsp;<span class="kw">IF</span> :NEW.quantity_on_hand &lt; <span class="num">0</span> <span class="kw">THEN</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="err">RAISE_APPLICATION_ERROR</span>(<span class="num">-20001</span>,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="str">'Stock cannot be negative'</span>);<br>
+          &nbsp;&nbsp;<span class="kw">END IF</span>;<br>
+          <span class="kw">END</span>;<br>
+          /
+        </div>
+      </div>
+
+      <!-- Trigger 2 -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">② trg_update_timestamp</div>
+          <span class="badge blue">BEFORE UPDATE</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);font-family:var(--font);margin-bottom:12px;">Automatically sets last_updated = SYSDATE whenever a row in Camp_Inventory is modified. Removes the need for application-side timestamps.</div>
+        <div class="code-block">
+          <span class="cb-label">TRIGGER 2 / 5</span>
+          <span class="kw">CREATE OR REPLACE TRIGGER</span> trg_update_timestamp<br>
+          <span class="kw">BEFORE UPDATE ON</span> Camp_Inventory<br>
+          <span class="kw">FOR EACH ROW</span><br>
+          <span class="kw">BEGIN</span><br>
+          &nbsp;&nbsp;:NEW.last_updated := <span class="fn">SYSDATE</span>;<br>
+          <span class="kw">END</span>;<br>
+          /
+        </div>
+      </div>
+
+      <!-- Trigger 3 -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">③ trg_low_stock_alert</div>
+          <span class="badge red">AFTER UPDATE OF quantity_on_hand · WHEN &lt; 10</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);font-family:var(--font);margin-bottom:12px;">The core automation trigger. When stock drops below 10 units, it auto-inserts a Critical priority relief request using seq_request.NEXTVAL. This fires the subsequent trg_set_priority trigger on that INSERT.</div>
+        <div class="code-block">
+          <span class="cb-label">TRIGGER 3 / 5</span>
+          <span class="kw">CREATE OR REPLACE TRIGGER</span> trg_low_stock_alert<br>
+          <span class="kw">AFTER UPDATE OF</span> quantity_on_hand<br>
+          <span class="kw">ON</span> Camp_Inventory<br>
+          <span class="kw">FOR EACH ROW</span><br>
+          <span class="kw">WHEN</span> (NEW.quantity_on_hand &lt; <span class="num">10</span>)<br>
+          <span class="kw">BEGIN</span><br>
+          &nbsp;&nbsp;<span class="kw">INSERT INTO</span> Relief_Requests (<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;request_id, camp_id, item_id,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;quantity_requested, request_date,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;status, priority_level<br>
+          &nbsp;&nbsp;) <span class="kw">VALUES</span> (<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;seq_request.<span class="fn">NEXTVAL</span>,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;:NEW.camp_id, :NEW.item_id,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="num">50</span>, <span class="fn">SYSDATE</span>,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="str">'Pending'</span>, <span class="str">'Critical'</span><br>
+          &nbsp;&nbsp;);<br>
+          <span class="kw">END</span>;<br>
+          /
+        </div>
+      </div>
+
+      <!-- Trigger 4 -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">④ trg_set_priority</div>
+          <span class="badge blue">BEFORE INSERT ON Relief_Requests</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);font-family:var(--font);margin-bottom:12px;">Overrides the priority_level field on every new request based on quantity thresholds. Ensures consistent priority assignment regardless of what the user submits.</div>
+        <div class="code-block">
+          <span class="cb-label">TRIGGER 4 / 5</span>
+          <span class="kw">CREATE OR REPLACE TRIGGER</span> trg_set_priority<br>
+          <span class="kw">BEFORE INSERT ON</span> Relief_Requests<br>
+          <span class="kw">FOR EACH ROW</span><br>
+          <span class="kw">BEGIN</span><br>
+          &nbsp;&nbsp;<span class="kw">IF</span> :NEW.quantity_requested &gt; <span class="num">100</span> <span class="kw">THEN</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;:NEW.priority_level := <span class="str">'Critical'</span>;<br>
+          &nbsp;&nbsp;<span class="kw">ELSIF</span> :NEW.quantity_requested &gt; <span class="num">50</span> <span class="kw">THEN</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;:NEW.priority_level := <span class="str">'High'</span>;<br>
+          &nbsp;&nbsp;<span class="kw">ELSIF</span> :NEW.quantity_requested &gt; <span class="num">20</span> <span class="kw">THEN</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;:NEW.priority_level := <span class="str">'Medium'</span>;<br>
+          &nbsp;&nbsp;<span class="kw">ELSE</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;:NEW.priority_level := <span class="str">'Low'</span>;<br>
+          &nbsp;&nbsp;<span class="kw">END IF</span>;<br>
+          <span class="kw">END</span>;<br>
+          /
+        </div>
+      </div>
+
+      <!-- Trigger 5 -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⑤ trg_update_inventory_on_delivery</div>
+          <span class="badge blue">AFTER UPDATE OF status · WHEN = 'Delivered'</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);font-family:var(--font);margin-bottom:12px;">When a shipment is marked Delivered, this trigger auto-adds shipped_quantity to the camp's Camp_Inventory by joining through Relief_Requests to find the correct (camp_id, item_id) pair.</div>
+        <div class="code-block">
+          <span class="cb-label">TRIGGER 5 / 5</span>
+          <span class="kw">CREATE OR REPLACE TRIGGER</span> trg_update_inventory_on_delivery<br>
+          <span class="kw">AFTER UPDATE OF</span> status <span class="kw">ON</span> Shipments<br>
+          <span class="kw">FOR EACH ROW</span><br>
+          <span class="kw">WHEN</span> (NEW.status = <span class="str">'Delivered'</span>)<br>
+          <span class="kw">BEGIN</span><br>
+          &nbsp;&nbsp;<span class="kw">UPDATE</span> Camp_Inventory<br>
+          &nbsp;&nbsp;<span class="kw">SET</span> quantity_on_hand = quantity_on_hand + :NEW.shipped_quantity<br>
+          &nbsp;&nbsp;<span class="kw">WHERE</span> camp_id = (<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">SELECT</span> camp_id <span class="kw">FROM</span> Relief_Requests<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">WHERE</span> request_id = :NEW.request_id<br>
+          &nbsp;&nbsp;)<br>
+          &nbsp;&nbsp;<span class="kw">AND</span> item_id = (<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">SELECT</span> item_id <span class="kw">FROM</span> Relief_Requests<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">WHERE</span> request_id = :NEW.request_id<br>
+          &nbsp;&nbsp;);<br>
+          <span class="kw">END</span>;<br>
+          /
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROCEDURES & FUNCTIONS ===== -->
+    <div class="page" id="p-procedures">
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">process_shipment() Procedure</div><span class="badge purple">PROCEDURE</span></div>
+            <div style="font-size:12px;color:var(--muted);font-family:var(--font);margin-bottom:12px;">Encapsulates the full shipment dispatch flow: inserts into Shipments, marks the request Fulfilled, and commits — all in one atomic call.</div>
+            <div class="code-block">
+              <span class="cb-label">PROCEDURE</span>
+              <span class="kw">CREATE OR REPLACE PROCEDURE</span> process_shipment (<br>
+              &nbsp;&nbsp;p_request_id <span class="fn">NUMBER</span>,<br>
+              &nbsp;&nbsp;p_warehouse_id <span class="fn">NUMBER</span>,<br>
+              &nbsp;&nbsp;p_quantity <span class="fn">NUMBER</span><br>
+              ) <span class="kw">IS</span><br>
+              <span class="kw">BEGIN</span><br>
+              &nbsp;&nbsp;<span class="kw">INSERT INTO</span> Shipments (<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;shipment_id, request_id, warehouse_id,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;dispatch_date, delivery_date,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;shipped_quantity, status<br>
+              &nbsp;&nbsp;) <span class="kw">VALUES</span> (<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;seq_shipment.<span class="fn">NEXTVAL</span>,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;p_request_id, p_warehouse_id,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">SYSDATE</span>, <span class="kw">NULL</span>,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;p_quantity, <span class="str">'In Transit'</span><br>
+              &nbsp;&nbsp;);<br><br>
+              &nbsp;&nbsp;<span class="kw">UPDATE</span> Relief_Requests<br>
+              &nbsp;&nbsp;<span class="kw">SET</span> status = <span class="str">'Fulfilled'</span><br>
+              &nbsp;&nbsp;<span class="kw">WHERE</span> request_id = p_request_id;<br><br>
+              &nbsp;&nbsp;<span class="kw">COMMIT</span>;<br>
+              <span class="kw">END</span>;<br>
+              /<br><br>
+              <span class="cm">-- Execute:</span><br>
+              <span class="kw">BEGIN</span><br>
+              &nbsp;&nbsp;process_shipment(<span class="num">1</span>, <span class="num">1</span>, <span class="num">50</span>);<br>
+              <span class="kw">END</span>;<br>
+              /
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">get_days_left() Function</div><span class="badge accent">FUNCTION → NUMBER</span></div>
+            <div style="font-size:12px;color:var(--muted);font-family:var(--font);margin-bottom:12px;">Returns days of supply remaining for a given (camp_id, item_id) pair. Uses a 3-table join to compute quantity ÷ (population × per_person_daily_need). Called directly in SQL queries.</div>
+            <div class="code-block">
+              <span class="cb-label">FUNCTION</span>
+              <span class="kw">CREATE OR REPLACE FUNCTION</span> get_days_left (<br>
+              &nbsp;&nbsp;p_camp_id <span class="fn">NUMBER</span>,<br>
+              &nbsp;&nbsp;p_item_id <span class="fn">NUMBER</span><br>
+              ) <span class="kw">RETURN NUMBER IS</span><br>
+              &nbsp;&nbsp;v_days <span class="fn">NUMBER</span>;<br>
+              <span class="kw">BEGIN</span><br>
+              &nbsp;&nbsp;<span class="kw">SELECT</span><br>
+              &nbsp;&nbsp;&nbsp;&nbsp;ci.quantity_on_hand /<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;(rc.current_population * sc.per_person_daily_need)<br>
+              &nbsp;&nbsp;<span class="kw">INTO</span> v_days<br>
+              &nbsp;&nbsp;<span class="kw">FROM</span> Camp_Inventory ci<br>
+              &nbsp;&nbsp;<span class="kw">JOIN</span> Relief_Camps rc <span class="kw">ON</span> ci.camp_id = rc.camp_id<br>
+              &nbsp;&nbsp;<span class="kw">JOIN</span> Supply_Catalog sc <span class="kw">ON</span> ci.item_id = sc.item_id<br>
+              &nbsp;&nbsp;<span class="kw">WHERE</span> ci.camp_id = p_camp_id<br>
+              &nbsp;&nbsp;<span class="kw">AND</span> ci.item_id = p_item_id;<br><br>
+              &nbsp;&nbsp;<span class="kw">RETURN</span> <span class="fn">ROUND</span>(v_days, <span class="num">2</span>);<br>
+              <span class="kw">END</span>;<br>
+              /<br><br>
+              <span class="cm">-- Usage:</span><br>
+              <span class="kw">SELECT</span> <span class="fn">get_days_left</span>(<span class="num">1</span>, <span class="num">101</span>) <span class="kw">FROM dual</span>;
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">Sequences</div><span class="badge yellow">DDL</span></div>
+            <div class="code-block">
+              <span class="kw">CREATE SEQUENCE</span> seq_request<br>
+              &nbsp;&nbsp;<span class="kw">START WITH</span> <span class="num">1</span> <span class="kw">INCREMENT BY</span> <span class="num">1</span>;<br><br>
+              <span class="kw">CREATE SEQUENCE</span> seq_shipment<br>
+              &nbsp;&nbsp;<span class="kw">START WITH</span> <span class="num">1</span> <span class="kw">INCREMENT BY</span> <span class="num">1</span>;
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CRITICAL SHORTAGES ===== -->
+    <div class="page" id="p-report">
+      <div class="stats-grid">
+        <div class="stat-card red"><div class="stat-label">Critical Camps</div><div class="stat-value red">2</div><div class="stat-sub">days_left &lt; 1</div></div>
+        <div class="stat-card red"><div class="stat-label">qty_on_hand &lt; 10</div><div class="stat-value red">2</div><div class="stat-sub">trigger fired</div></div>
+        <div class="stat-card yellow"><div class="stat-label">Total Pending Qty</div><div class="stat-value yellow">60,200</div><div class="stat-sub">SUM(quantity_requested)</div></div>
+        <div class="stat-card yellow"><div class="stat-label">Avg days_left</div><div class="stat-value yellow">3.2</div><div class="stat-sub">Critical camps avg</div></div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Low Stock — get_days_left() visual</div></div>
+            <div id="report-bars">
+              <div class="inv-row"><div class="inv-row-header"><span>camp 1 / item 101 (Water)</span><span style="color:var(--danger)">0.13 days ⚠</span></div><div class="progress"><div class="progress-fill" style="width:1%;background:var(--danger)"></div></div></div>
+              <div class="inv-row"><div class="inv-row-header"><span>camp 2 / item 104 (Insulin)</span><span style="color:var(--danger)">&lt;1 day ⚠</span></div><div class="progress"><div class="progress-fill" style="width:3%;background:var(--danger)"></div></div></div>
+              <div class="inv-row"><div class="inv-row-header"><span>camp 3 / item 102 (Rice)</span><span style="color:var(--warning)">2.8 days !</span></div><div class="progress"><div class="progress-fill" style="width:28%;background:var(--warning)"></div></div></div>
+              <div class="inv-row"><div class="inv-row-header"><span>camp 4 / item 101 (Water)</span><span style="color:var(--success)">10 days ✓</span></div><div class="progress"><div class="progress-fill" style="width:100%;background:var(--success)"></div></div></div>
+              <div class="inv-row"><div class="inv-row-header"><span>camp 4 / item 102 (Rice)</span><span style="color:var(--success)">8 days ✓</span></div><div class="progress"><div class="progress-fill" style="width:80%;background:var(--success)"></div></div></div>
+            </div>
+            <div style="margin-top:12px;font-size:10px;color:var(--muted);font-family:var(--mono)">bar % = days_left / 10 · using get_days_left(camp_id, item_id)</div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">camp population vs stock stress</div></div>
+            <table>
+              <thead><tr><th>camp_id</th><th>current_population</th><th>Critical item_id</th><th>days_left</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>3,200</td><td>101 (Water)</td><td><span class="badge red">0.13</span></td></tr>
+                <tr><td>2</td><td>4,100</td><td>104 (Insulin)</td><td><span class="badge red">&lt;1</span></td></tr>
+                <tr><td>3</td><td>2,950</td><td>102 (Rice)</td><td><span class="badge yellow">2.8</span></td></tr>
+                <tr><td>4</td><td>2,200</td><td>—</td><td><span class="badge green">8+</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Critical Shortage Report — Optimized SQL View</div><span class="card-subtitle">3-table JOIN · WHERE days_left &lt; 3</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>camp_name</th><th>district</th><th>item_name</th><th>quantity_on_hand</th><th>days_left</th><th>current_population</th><th>priority</th></tr></thead>
+            <tbody>
+              <tr><td>Camp Roorkee B</td><td>Roorkee</td><td>Water</td><td>1,280</td><td><span class="badge red">0.13</span></td><td>3,200</td><td><span class="badge red">Critical</span></td></tr>
+              <tr><td>Camp Haridwar A</td><td>Haridwar</td><td>Insulin</td><td>8</td><td><span class="badge red">&lt;1</span></td><td>4,100</td><td><span class="badge red">Critical</span></td></tr>
+              <tr><td>Camp Dehradun C</td><td>Dehradun</td><td>Rice</td><td>4,200</td><td><span class="badge yellow">2.8</span></td><td>2,950</td><td><span class="badge yellow">High</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block" style="margin-top:14px">
+          <span class="cb-label">OPTIMIZED QUERY</span>
+          <span class="cm">-- Critical shortage report — 3-table join, calculated column</span><br>
+          <span class="kw">SELECT</span><br>
+          &nbsp;&nbsp;rc.camp_name,<br>
+          &nbsp;&nbsp;rc.district,<br>
+          &nbsp;&nbsp;sc.item_name,<br>
+          &nbsp;&nbsp;ci.quantity_on_hand,<br>
+          &nbsp;&nbsp;<span class="fn">ROUND</span>(<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;ci.quantity_on_hand /<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;(rc.current_population * sc.per_person_daily_need), <span class="num">2</span><br>
+          &nbsp;&nbsp;) <span class="kw">AS</span> days_left,<br>
+          &nbsp;&nbsp;rc.current_population<br>
+          <span class="kw">FROM</span> Camp_Inventory ci<br>
+          <span class="kw">JOIN</span> Relief_Camps rc <span class="kw">ON</span> ci.camp_id = rc.camp_id<br>
+          <span class="kw">JOIN</span> Supply_Catalog sc <span class="kw">ON</span> ci.item_id = sc.item_id<br>
+          <span class="kw">WHERE</span><br>
+          &nbsp;&nbsp;(ci.quantity_on_hand /<br>
+          &nbsp;&nbsp;(rc.current_population * sc.per_person_daily_need)) &lt; <span class="num">3</span><br>
+          <span class="kw">ORDER BY</span> days_left <span class="kw">ASC</span>;
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Low Stock Rows — Direct SELECT</div></div>
+        <div class="code-block">
+          <span class="cm">-- Items with quantity_on_hand &lt; 10 (threshold for trigger)</span><br>
+          <span class="kw">SELECT</span> *<br>
+          <span class="kw">FROM</span> Camp_Inventory<br>
+          <span class="kw">WHERE</span> quantity_on_hand &lt; <span class="num">10</span>;<br><br>
+          <span class="cm">-- Cross-check using stored function for all rows</span><br>
+          <span class="kw">SELECT</span><br>
+          &nbsp;&nbsp;ci.camp_id, ci.item_id,<br>
+          &nbsp;&nbsp;<span class="fn">get_days_left</span>(ci.camp_id, ci.item_id) <span class="kw">AS</span> days_left<br>
+          <span class="kw">FROM</span> Camp_Inventory ci<br>
+          <span class="kw">ORDER BY</span> days_left <span class="kw">ASC</span>;
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===========================================================================
+  // API BASE URL — change this if your backend runs on a different port/host
+  // Make sure your Node.js backend is running: npm run dev (in rrdrs-backend/)
+  // ===========================================================================
+  var API = 'http://localhost:3000/api';
+
+  // ---------------------------------------------------------------------------
+  // api(path, options) — central fetch helper
+  //   • Automatically sets Content-Type: application/json
+  //   • Throws a readable error if the server returns a non-2xx status
+  //   • All functions use await api(...) instead of raw fetch()
+  // ---------------------------------------------------------------------------
+  async function api(path, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+    var res = await fetch(API + path, opts);
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+
+  var pageTitles = {
+    overview:   ['SYSTEM_OVERVIEW', '-- monitoring all active relief camps'],
+    camps:      ['RELIEF_CAMPS', '-- INSERT / DELETE camp records'],
+    catalog:    ['SUPPLY_CATALOG', '-- master item list with per_person_daily_need'],
+    inventory:  ['CAMP_INVENTORY', '-- composite PK (camp_id, item_id) · 3 triggers'],
+    requests:   ['RELIEF_REQUESTS', '-- INSERT requests · trg_set_priority fires on INSERT'],
+    warehouses: ['WAREHOUSES + WAREHOUSE_INVENTORY', '-- FK chains · composite PK'],
+    shipments:  ['SHIPMENTS', '-- seq_shipment · trg_update_inventory_on_delivery'],
+    triggers:   ['PL/SQL TRIGGERS', '-- 5 triggers · BEFORE + AFTER · FOR EACH ROW'],
+    procedures: ['PROCEDURES & FUNCTIONS', '-- process_shipment() · get_days_left()'],
+    report:     ['CRITICAL_SHORTAGES', '-- 3-table JOIN · days_left < 3 · trigger log']
+  };
+
+  // ---------------------------------------------------------------------------
+  // showPage — navigation (unchanged from before)
+  // ---------------------------------------------------------------------------
+  function showPage(id, btn) {
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.nav-item').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById('p-' + id).classList.add('active');
+    if (btn) { btn.classList.add('active'); }
+    else {
+      document.querySelectorAll('.nav-item').forEach(function(b){
+        if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'" + id + "'") !== -1) b.classList.add('active');
+      });
+    }
+    document.getElementById('page-title').textContent = pageTitles[id][0];
+    document.getElementById('page-sub').textContent = pageTitles[id][1];
+    // Reload live data whenever user navigates to these pages
+    if (id === 'overview')   loadOverview();
+    if (id === 'camps')      loadCamps();
+    if (id === 'inventory')  loadInventory();
+    if (id === 'requests')   loadRequests();
+    if (id === 'shipments')  loadShipments();
+    if (id === 'report')     loadReport();
+  }
+
+  // ---------------------------------------------------------------------------
+  // showToast — small notification (unchanged)
+  // ---------------------------------------------------------------------------
+  function showToast(msg, type) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast ' + (type || 'success') + ' show';
+    setTimeout(function(){ t.classList.remove('show'); }, 3500);
+  }
+
+  // ---------------------------------------------------------------------------
+  // showMsg — inline form message helper
+  // ---------------------------------------------------------------------------
+  function showMsg(id, text, type) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'msg-box ' + type;
+    el.style.display = 'block';
+    setTimeout(function(){ el.style.display = 'none'; }, 4500);
+  }
+
+  // ===========================================================================
+  // OVERVIEW — GET /api/camps  +  GET /api/requests  +  GET /api/shipments
+  // Populates all six stat cards and the two summary tables from live DB data.
+  // ===========================================================================
+  async function loadOverview() {
+    try {
+      // Parallel requests — faster than sequential awaits
+      var results = await Promise.all([
+        api('/camps'),
+        api('/requests'),
+        api('/shipments')
+      ]);
+      var camps     = results[0].data;
+      var requests  = results[1].data;
+      var shipments = results[2].data;
+
+      // Stat cards
+      document.getElementById('s-camps').textContent     = camps.length;
+      document.getElementById('s-pop').textContent       = camps.reduce(function(s,c){ return s + (c.CURRENT_POPULATION||0); }, 0).toLocaleString();
+      document.getElementById('s-pending').textContent   = requests.filter(function(r){ return r.STATUS === 'Pending'; }).length;
+      document.getElementById('s-alerts').textContent    = camps.filter(function(c){ return c.STATUS === 'Critical'; }).length;
+      document.getElementById('s-shipments').textContent = shipments.filter(function(s){ return s.STATUS === 'In Transit'; }).length;
+
+      // Camp status table
+      var campTbody = document.querySelector('#overview-camps-table tbody');
+      if (campTbody) {
+        campTbody.innerHTML = camps.map(function(c) {
+          var badgeClass = c.STATUS === 'Critical' ? 'red' : c.STATUS === 'Low Stock' ? 'yellow' : 'green';
+          return '<tr><td>'+c.CAMP_ID+'</td><td>'+c.CAMP_NAME+'</td><td>'+c.DISTRICT+'</td>'
+               + '<td>'+(c.CURRENT_POPULATION||0).toLocaleString()+'</td>'
+               + '<td><span class="badge '+badgeClass+'">'+c.STATUS+'</span></td></tr>';
+        }).join('');
+      }
+
+      // Recent shipments table
+      var shTbody = document.querySelector('#overview-shipments-table tbody');
+      if (shTbody) {
+        shTbody.innerHTML = shipments.slice(0, 5).map(function(s) {
+          var badgeClass = s.STATUS === 'Delivered' ? 'green' : s.STATUS === 'Delayed' ? 'red' : 'blue';
+          return '<tr><td>'+s.SHIPMENT_ID+'</td><td>'+s.REQUEST_ID+'</td><td>'+s.SHIPPED_QUANTITY+'</td>'
+               + '<td><span class="badge '+badgeClass+'">'+s.STATUS+'</span></td></tr>';
+        }).join('');
+      }
+    } catch(err) {
+      showToast('Overview load failed: ' + err.message, 'error');
+    }
+  }
+
+  // ===========================================================================
+  // CAMPS — GET /api/camps  |  POST /api/camps  |  DELETE /api/camps/:id
+  // ===========================================================================
+  async function loadCamps() {
+    try {
+      var result = await api('/camps');
+      var camps  = result.data;
+
+      document.getElementById('camp-count-label').textContent = camps.length + ' rows';
+      document.getElementById('s-camps').textContent = camps.length;
+
+      // Rebuild the camp table rows from live data
+      var tbody = document.querySelector('#camp-table tbody');
+      tbody.innerHTML = camps.map(function(c) {
+        return '<tr>'
+          + '<td>'+c.CAMP_ID+'</td>'
+          + '<td>'+c.CAMP_NAME+'</td>'
+          + '<td>'+(c.DISTRICT||'—')+'</td>'
+          + '<td>'+(c.CURRENT_POPULATION||0).toLocaleString()+'</td>'
+          + '<td>'+(c.CONTACT_PERSON||'—')+'</td>'
+          + '<td>'+(c.CONTACT_NUMBER||'—')+'</td>'
+          + '<td>'+(c.LATITUDE||'—')+'</td>'
+          + '<td><button class="btn sm danger" onclick="deleteCamp('+c.CAMP_ID+', this)">DELETE</button></td>'
+          + '</tr>';
+      }).join('');
+
+      // Also refresh all camp dropdowns (inventory, requests pages)
+      refreshCampDropdowns(camps);
+    } catch(err) {
+      showToast('Failed to load camps: ' + err.message, 'error');
+    }
+  }
+
+  function refreshCampDropdowns(camps) {
+    ['inv-camp', 'req-camp'].forEach(function(selId) {
+      var sel = document.getElementById(selId);
+      if (!sel) return;
+      sel.innerHTML = camps.map(function(c) {
+        return '<option value="'+c.CAMP_ID+'">'+c.CAMP_ID+' — '+c.CAMP_NAME+'</option>';
+      }).join('');
+    });
+  }
+
+  async function addCamp() {
+    var n   = document.getElementById('f-cname').value.trim();
+    var d   = document.getElementById('f-district').value.trim();
+    var p   = document.getElementById('f-pop').value.trim();
+    var c   = document.getElementById('f-contact').value.trim();
+    var ph  = document.getElementById('f-phone').value.trim();
+    var lat = document.getElementById('f-lat').value.trim();
+
+    if (!n || !d || !p) { showMsg('camp-msg','✗ camp_name, district and current_population are NOT NULL','error'); return; }
+    if (parseInt(p) < 0) { showMsg('camp-msg','✗ CHECK constraint: current_population >= 0 violated','error'); return; }
+
+    // camp_id: auto-increment from current max+1 (backend can also auto-assign)
+    var campId = Date.now() % 100000; // simple unique ID for demo; ideally let backend assign
+
+    try {
+      await api('/camps', {
+        method: 'POST',
+        body: JSON.stringify({
+          camp_id: campId,
+          camp_name: n, district: d,
+          current_population: parseInt(p),
+          contact_person: c || null,
+          contact_number: ph || null,
+          latitude: lat ? parseFloat(lat) : null
+        })
+      });
+      showMsg('camp-msg', '✓ INSERT INTO Relief_Camps committed — camp_id ' + campId, 'success');
+      showToast('Camp ' + n + ' inserted', 'success');
+      clearCampForm();
+      loadCamps(); // refresh table from DB
+    } catch(err) {
+      showMsg('camp-msg', '✗ ' + err.message, 'error');
+    }
+  }
+
+  async function deleteCamp(campId, btn) {
+    if (!confirm('DELETE camp ' + campId + '? ON DELETE CASCADE removes linked inventory and requests.')) return;
+    try {
+      await api('/camps/' + campId, { method: 'DELETE' });
+      showToast('Camp ' + campId + ' deleted · CASCADE applied', 'error');
+      loadCamps(); // refresh table
+    } catch(err) {
+      showToast('Delete failed: ' + err.message, 'error');
+    }
+  }
+
+  // Keep old deleteRow for non-camp rows
+  function deleteRow(btn, type) {
+    if (type !== 'camp') {
+      if (confirm('Delete this record?')) { btn.closest('tr').remove(); showToast('Record deleted', 'error'); }
+    }
+  }
+
+  function clearCampForm() {
+    ['f-cname','f-district','f-pop','f-contact','f-phone','f-lat'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+  }
+
+  // ===========================================================================
+  // INVENTORY — GET /api/inventory  |  PUT /api/inventory/:campId/:itemId
+  // ===========================================================================
+  async function loadInventory() {
+    try {
+      var result = await api('/inventory');
+      var rows   = result.data;
+
+      // Rebuild the inventory table
+      var tbody = document.querySelector('#inv-table tbody');
+      if (tbody) {
+        tbody.innerHTML = rows.map(function(r) {
+          var days = r.DAYS_LEFT;
+          var badgeClass = days < 1 ? 'red' : days < 3 ? 'yellow' : 'green';
+          var statusLabel = days < 1 ? 'Critical' : days < 3 ? 'Low' : 'Stable';
+          return '<tr>'
+            + '<td>'+r.CAMP_ID+'</td>'
+            + '<td>'+r.ITEM_ID+' ('+r.ITEM_NAME+')</td>'
+            + '<td>'+(r.QUANTITY_ON_HAND||0).toLocaleString()+'</td>'
+            + '<td><span class="badge '+badgeClass+'">'+days+'</span></td>'
+            + '<td>'+(r.LAST_UPDATED ? r.LAST_UPDATED.slice(0,10) : '—')+'</td>'
+            + '<td><span class="badge '+badgeClass+'">'+statusLabel+'</span></td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // Rebuild the supply-level bars from live data
+      var container = document.getElementById('inv-bars');
+      if (container) {
+        container.innerHTML = rows.map(function(r) {
+          var days  = r.DAYS_LEFT || 0;
+          var pct   = Math.min(100, Math.round((days / 10) * 100));
+          var color = days < 1 ? '#ef4444' : days < 3 ? '#f59e0b' : '#22c55e';
+          return '<div class="inv-row">'
+            + '<div class="inv-row-header">'
+            + '<span>camp '+r.CAMP_ID+' / '+r.ITEM_NAME+'</span>'
+            + '<span style="color:'+color+'">'+days+' days</span>'
+            + '</div>'
+            + '<div class="progress"><div class="progress-fill" style="width:'+pct+'%;background:'+color+'"></div></div>'
+            + '</div>';
+        }).join('');
+      }
+    } catch(err) {
+      showToast('Inventory load failed: ' + err.message, 'error');
+    }
+  }
+
+  async function updateInventory() {
+    var campId = document.getElementById('inv-camp').value;
+    var itemId = document.getElementById('inv-item').value;
+    var qty    = document.getElementById('inv-qty').value;
+
+    if (!qty) { showMsg('inv-msg','✗ quantity_on_hand is NOT NULL','error'); return; }
+    if (parseInt(qty) < 0) { showMsg('inv-msg','✗ trg_no_negative_stock: RAISE_APPLICATION_ERROR(-20001)','error'); return; }
+
+    try {
+      // PUT /api/inventory/:campId/:itemId  { quantity_on_hand }
+      await api('/inventory/' + campId + '/' + itemId, {
+        method: 'PUT',
+        body: JSON.stringify({ quantity_on_hand: parseInt(qty) })
+      });
+
+      var q = parseInt(qty);
+      var triggered = q < 10;
+      showMsg('inv-msg',
+        '✓ UPDATE Camp_Inventory SET quantity_on_hand=' + q
+        + ' WHERE camp_id=' + campId + ' AND item_id=' + itemId
+        + '\n⚡ trg_update_timestamp → last_updated=SYSDATE'
+        + (triggered ? '\n⚡ trg_low_stock_alert fired → Critical request auto-created!' : ''),
+        'success'
+      );
+      if (triggered) showToast('⚡ trg_low_stock_alert fired for camp ' + campId, 'warning');
+      else showToast('Camp_Inventory updated', 'success');
+
+      loadInventory(); // refresh bars + table
+    } catch(err) {
+      showMsg('inv-msg', '✗ ' + err.message, 'error');
+    }
+  }
+
+  
+  // ===========================================================================
+  // REQUESTS — GET /api/requests  |  POST /api/requests  |  PUT status
+  // ===========================================================================
+  async function loadRequests() {
+    try {
+      var result   = await api('/requests');
+      var requests = result.data;
+
+      var tbody = document.querySelector('#req-table tbody');
+      if (!tbody) return;
+      tbody.innerHTML = requests.map(function(r) {
+        var pri = r.PRIORITY_LEVEL || 'Low';
+        var badgePri = pri === 'Critical' ? 'red' : pri === 'High' ? 'yellow' : pri === 'Medium' ? 'accent' : 'blue';
+        var st  = r.STATUS || 'Pending';
+        var badgeSt  = st === 'Fulfilled' ? 'green' : st === 'Rejected' ? 'red' : 'red';
+        var actionBtn = st === 'Pending'
+          ? '<button class="btn sm" onclick="fulfillReq('+r.REQUEST_ID+', this)">Mark Fulfilled</button>'
+          : '<button class="btn sm" disabled>Done</button>';
+        return '<tr data-status="'+st+'" data-priority="'+pri+'">'
+          + '<td>'+r.REQUEST_ID+'</td>'
+          + '<td>'+r.CAMP_ID+'</td>'
+          + '<td>'+r.ITEM_ID+'</td>'
+          + '<td>'+(r.QUANTITY_REQUESTED||0).toLocaleString()+'</td>'
+          + '<td>'+(r.REQUEST_DATE ? r.REQUEST_DATE.slice(0,10) : '—')+'</td>'
+          + '<td><span class="badge '+badgePri+'">'+pri+'</span></td>'
+          + '<td><span class="badge '+badgeSt+'">'+st+'</span></td>'
+          + '<td>'+actionBtn+'</td>'
+          + '</tr>';
+      }).join('');
+
+      document.getElementById('s-pending').textContent = requests.filter(function(r){ return r.STATUS === 'Pending'; }).length;
+    } catch(err) {
+      showToast('Requests load failed: ' + err.message, 'error');
+    }
+  }
+
+  async function addRequest() {
+    var campId = document.getElementById('req-camp').value;
+    var itemId = document.getElementById('req-item').value;
+    var qty    = document.getElementById('req-qty').value;
+
+    if (!qty || parseInt(qty) < 1) { showMsg('req-msg','✗ CHECK: quantity_requested > 0','error'); return; }
+
+    try {
+      var result = await api('/requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          camp_id: parseInt(campId),
+          item_id: parseInt(itemId),
+          quantity_requested: parseInt(qty)
+          // priority_level set automatically by trg_set_priority on DB
+        })
+      });
+
+      // trg_set_priority runs on DB side — fetch the actual priority back
+      var q = parseInt(qty);
+      var autoPri = q > 100 ? 'Critical' : q > 50 ? 'High' : q > 20 ? 'Medium' : 'Low';
+      showMsg('req-msg',
+        '✓ INSERT INTO Relief_Requests via seq_request.NEXTVAL\n⚡ trg_set_priority → priority_level = ' + autoPri,
+        'success'
+      );
+      showToast('Request inserted · priority=' + autoPri, 'success');
+      clearReqForm();
+      loadRequests(); // refresh table from DB
+    } catch(err) {
+      showMsg('req-msg', '✗ ' + err.message, 'error');
+    }
+  }
+
+  async function fulfillReq(requestId, btn) {
+    try {
+      // PUT /api/requests/:id  { status: 'Fulfilled' }
+      await api('/requests/' + requestId, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'Fulfilled' })
+      });
+      // Update the row visually without a full reload
+      var row = btn.closest('tr');
+      row.cells[6].innerHTML = '<span class="badge green">Fulfilled</span>';
+      row.setAttribute('data-status', 'Fulfilled');
+      btn.textContent = 'Done'; btn.disabled = true;
+      var pending = parseInt(document.getElementById('s-pending').textContent);
+      document.getElementById('s-pending').textContent = Math.max(0, pending - 1);
+      showToast('UPDATE Relief_Requests SET status=\'Fulfilled\' — committed', 'success');
+    } catch(err) {
+      showToast('Fulfill failed: ' + err.message, 'error');
+    }
+  }
+
+  function clearReqForm() { document.getElementById('req-qty').value = ''; }
+
+  function filterRequests() {
+    var sf = document.getElementById('req-filter-status').value;
+    var pf = document.getElementById('req-filter-priority').value;
+    document.querySelectorAll('#req-table tbody tr').forEach(function(row) {
+      var s = row.getAttribute('data-status') || '';
+      var p = row.getAttribute('data-priority') || '';
+      row.style.display = (!sf || s === sf) && (!pf || p === pf) ? '' : 'none';
+    });
+  }
+
+  // ===========================================================================
+  // SHIPMENTS — GET /api/shipments  |  POST /api/shipments  |  PUT status
+  // ===========================================================================
+  async function loadShipments() {
+    try {
+      var result    = await api('/shipments');
+      var shipments = result.data;
+
+      document.getElementById('sh-count-label').textContent = shipments.length + ' rows';
+      document.getElementById('s-shipments').textContent    = shipments.filter(function(s){ return s.STATUS === 'In Transit'; }).length;
+
+      var tbody = document.querySelector('#sh-table tbody');
+      if (!tbody) return;
+      tbody.innerHTML = shipments.map(function(s) {
+        var badgeClass = s.STATUS === 'Delivered' ? 'green' : s.STATUS === 'Delayed' ? 'red' : 'blue';
+        var actionBtn  = s.STATUS === 'In Transit'
+          ? '<button class="btn sm success" onclick="deliverShipment('+s.SHIPMENT_ID+', this)">Mark Delivered</button>'
+          : '<button class="btn sm" disabled>Done</button>';
+        return '<tr>'
+          + '<td>'+s.SHIPMENT_ID+'</td>'
+          + '<td>'+s.REQUEST_ID+'</td>'
+          + '<td>'+s.WAREHOUSE_ID+'</td>'
+          + '<td>'+(s.DISPATCH_DATE ? s.DISPATCH_DATE.slice(0,10) : '—')+'</td>'
+          + '<td>'+(s.DELIVERY_DATE ? s.DELIVERY_DATE.slice(0,10) : '—')+'</td>'
+          + '<td>'+(s.SHIPPED_QUANTITY||0).toLocaleString()+'</td>'
+          + '<td><span class="badge '+badgeClass+'">'+s.STATUS+'</span></td>'
+          + '<td>'+actionBtn+'</td>'
+          + '</tr>';
+      }).join('');
+    } catch(err) {
+      showToast('Shipments load failed: ' + err.message, 'error');
+    }
+  }
+
+  async function dispatchShipment() {
+    var req  = document.getElementById('sh-req').value;
+    var wh   = document.getElementById('sh-warehouse').value;
+    var qty  = document.getElementById('sh-qty').value;
+    var eta  = document.getElementById('sh-eta').value;
+
+    if (!qty || parseInt(qty) < 1) { showMsg('sh-msg','✗ CHECK: shipped_quantity > 0','error'); return; }
+
+    try {
+      // Calls process_shipment() stored procedure via the backend
+      await api('/shipments', {
+        method: 'POST',
+        body: JSON.stringify({
+          request_id:      parseInt(req),
+          warehouse_id:    parseInt(wh),
+          shipped_quantity: parseInt(qty),
+          delivery_date:   eta || null
+        })
+      });
+      showMsg('sh-msg',
+        '✓ process_shipment(' + req + ', ' + wh + ', ' + qty + ') executed\nINSERT INTO Shipments via seq_shipment.NEXTVAL',
+        'success'
+      );
+      showToast('Shipment dispatched from warehouse ' + wh, 'success');
+      clearShipmentForm();
+      loadShipments(); // refresh table
+    } catch(err) {
+      showMsg('sh-msg', '✗ ' + err.message, 'error');
+    }
+  }
+
+  async function deliverShipment(shipmentId, btn) {
+    try {
+      // PUT /api/shipments/:id  { status: 'Delivered' }
+      // On DB side: trg_update_inventory_on_delivery fires and updates Camp_Inventory
+      await api('/shipments/' + shipmentId, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'Delivered' })
+      });
+      var row = btn.closest('tr');
+      row.cells[6].innerHTML = '<span class="badge green">Delivered</span>';
+      btn.textContent = 'Done'; btn.disabled = true;
+      var active = parseInt(document.getElementById('s-shipments').textContent);
+      document.getElementById('s-shipments').textContent = Math.max(0, active - 1);
+      showToast('Delivered ✓ trg_update_inventory_on_delivery fired · Camp_Inventory updated', 'success');
+    } catch(err) {
+      showToast('Delivery update failed: ' + err.message, 'error');
+    }
+  }
+
+  function clearShipmentForm() {
+    document.getElementById('sh-qty').value = '';
+    document.getElementById('sh-eta').value = '';
+  }
+
+  // ===========================================================================
+  // REPORT — GET /api/report/shortages
+  // ===========================================================================
+  async function loadReport() {
+    try {
+      var result = await api('/report/shortages');
+      var rows   = result.data;
+
+      var tbody = document.querySelector('#report-shortage-table tbody');
+      if (!tbody) return;
+      tbody.innerHTML = rows.map(function(r) {
+        var days = r.DAYS_LEFT;
+        var badgeClass = days < 1 ? 'red' : days < 3 ? 'yellow' : 'green';
+        var pri = days < 1 ? 'Critical' : 'High';
+        return '<tr>'
+          + '<td>'+r.CAMP_NAME+'</td>'
+          + '<td>'+r.DISTRICT+'</td>'
+          + '<td>'+r.ITEM_NAME+'</td>'
+          + '<td>'+(r.QUANTITY_ON_HAND||0).toLocaleString()+'</td>'
+          + '<td><span class="badge '+badgeClass+'">'+days+' days</span></td>'
+          + '<td>'+(r.CURRENT_POPULATION||0).toLocaleString()+'</td>'
+          + '<td><span class="badge '+badgeClass+'">'+pri+'</span></td>'
+          + '</tr>';
+      }).join('');
+    } catch(err) {
+      showToast('Report load failed: ' + err.message, 'error');
+    }
+  }
+
+  // ===========================================================================
+  // INIT — runs once when the page first loads
+  // ===========================================================================
+  document.getElementById('sh-eta').valueAsDate = new Date(Date.now() + 86400000);
+  loadOverview(); // load stats on startup
+</script>
+</body>
+</html>

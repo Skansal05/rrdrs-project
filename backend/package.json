@@ -1,0 +1,21 @@
+{
+  "name": "rrdrs-backend",
+  "version": "1.0.0",
+  "description": "Rapid Response Disaster Relief System — Node.js REST API (UCS310 DBMS Project)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "oracledb": "^6.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "author": "Samarth Badola, Shourya Kansal, Pallav Nirola — 2C65",
+  "license": "MIT"
+}
